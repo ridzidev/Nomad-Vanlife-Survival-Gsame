@@ -21,6 +21,8 @@ let vanWheels = [];
 let vanDecorMeshes = {};
 let vanHeadLightObj, vanInteriorLight, vanDriverMesh, vanSideDoorGroup, vanFridgeLedMat;
 let liveryMeshLeft, liveryMeshRight;
+let vanTentGroup, vanTentLight;
+let tentDeployProgress = 0;
 let steerVis = 0;
 let doorSlideProgress = 0;
 
@@ -313,6 +315,89 @@ function buildCamperVan() {
   vanDecorMeshes.cabinPlant = plantG;
 
   syncVanVisuals();
+  buildTentExtension();
+}
+
+function buildTentExtension() {
+  if (vanTentGroup) vanGroup.remove(vanTentGroup);
+  vanTentGroup = new THREE.Group();
+
+  const matCanvas  = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.85, side: THREE.DoubleSide });
+  const matWall    = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.85, side: THREE.DoubleSide });
+  const matMeshWin = new THREE.MeshStandardMaterial({ color: 0x334155, transparent: true, opacity: 0.45, side: THREE.DoubleSide });
+  const matMat     = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.95 });
+  const matTable   = new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.8 });
+
+  // Terpal alas lantai tenda (di samping kiri pintu geser camper: x = -1.08 .. -4.08)
+  const floorMat = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.05, 2.9), matMat);
+  floorMat.position.set(-2.58, 0.04, 0.25);
+  floorMat.receiveShadow = true;
+  vanTentGroup.add(floorMat);
+
+  // Atap kanopi tenda miring menyambung dari atap van (x=-1.08, y=2.24 -> x=-4.08, y=1.95)
+  const roofTent = new THREE.Mesh(new THREE.BoxGeometry(3.08, 0.07, 2.96), matCanvas);
+  roofTent.position.set(-2.58, 2.1, 0.25);
+  roofTent.rotation.z = 0.095;
+  roofTent.castShadow = true;
+  vanTentGroup.add(roofTent);
+
+  // 2 Tiang penyangga luar + tiang penghubung ke atap van
+  [-1.16, 1.66].forEach(pz => {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.96, 8), vanMaterials.chrome);
+    pole.position.set(-4.04, 0.98, pz);
+    pole.castShadow = true;
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 3.04, 8), vanMaterials.chrome);
+    beam.rotation.z = Math.PI / 2 + 0.095;
+    beam.position.set(-2.56, 2.08, pz);
+    vanTentGroup.add(pole, beam);
+  });
+
+  // Dinding luar tenda (x = -4.05) + Jendela jaring besar
+  const outerLower = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.9, 2.86), matWall);
+  outerLower.position.set(-4.05, 0.48, 0.25);
+  outerLower.castShadow = true;
+  const outerWin = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.95), matMeshWin);
+  outerWin.position.set(-4.05, 1.42, 0.25);
+  outerWin.rotation.y = Math.PI / 2;
+  vanTentGroup.add(outerLower, outerWin);
+
+  // Dinding belakang tenda (z = -1.16)
+  const backWall = new THREE.Mesh(new THREE.BoxGeometry(2.96, 1.92, 0.06), matWall);
+  backWall.position.set(-2.58, 0.99, -1.16);
+  backWall.castShadow = true;
+  vanTentGroup.add(backWall);
+
+  // Bingkai pintu masuk tenda di depan (z = +1.66) dengan lubang pintu terbuka
+  const frontSideLeft = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.92, 0.06), matWall);
+  frontSideLeft.position.set(-3.48, 0.99, 1.66);
+  const frontHeader = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.36, 0.06), matCanvas);
+  frontHeader.position.set(-2.0, 1.84, 1.66);
+  vanTentGroup.add(frontSideLeft, frontHeader);
+
+  // Furnitur santai dalam tenda: Meja lipat, 2 kursi & lentera gantung hangat
+  const tableTop = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.05, 1.25), matTable);
+  tableTop.position.set(-2.85, 0.68, -0.35);
+  tableTop.castShadow = true;
+  const tableLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.65, 6), vanMaterials.chrome);
+  tableLeg.position.set(-2.85, 0.35, -0.35);
+  vanTentGroup.add(tableTop, tableLeg);
+
+  [-0.95, 0.25].forEach(cz => {
+    const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.06, 0.45), matCanvas);
+    chairSeat.position.set(-2.15, 0.42, cz);
+    const chairLeg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.38, 0.4), vanMaterials.chrome);
+    chairLeg.position.set(-2.15, 0.21, cz);
+    vanTentGroup.add(chairSeat, chairLeg);
+  });
+
+  const lanternBulb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), vanMaterials.fairy);
+  lanternBulb.position.set(-2.6, 1.92, 0.25);
+  vanTentLight = new THREE.PointLight(0xfde68a, 0, 11);
+  vanTentLight.position.set(-2.6, 1.82, 0.25);
+  vanTentGroup.add(lanternBulb, vanTentLight);
+
+  vanTentGroup.visible = false;
+  vanGroup.add(vanTentGroup);
 }
 
 function updateVanLiveryTexture() {
@@ -397,7 +482,11 @@ function updateVanPhysics(dt) {
     const right = (keys['KeyD'] || keys['ArrowRight']) ? 1 : 0;
     const brake = keys['Space'] ? 1 : 0;
 
-    const hasFuel = van.fuel > 0 && van.hp > 5;
+    if (van.tentOpen && (gas || rev)) {
+      van.speed = 0;
+      if (Math.random() < 0.05) showToast('⛺ Lipat Tenda Extension [T] dulu sebelum jalan!');
+    }
+    const hasFuel = van.fuel > 0 && van.hp > 5 && !van.tentOpen;
     const accel = 18;
     const maxSpeed = 24;
 
@@ -420,7 +509,11 @@ function updateVanPhysics(dt) {
 
     const vx = Math.sin(van.yaw) * van.speed;
     const vz = Math.cos(van.yaw) * van.speed;
-    const col = resolveCollisions(van.x + vx * dt, van.z + vz * dt, 1.55);
+    let col = resolveCollisions(van.x + vx * dt, van.z + vz * dt, 1.55);
+    if (typeof BuildSys !== 'undefined') {
+      const bCol = BuildSys.resolveVanCollision(col.x, col.z, 1.55);
+      if (bCol.hit) col = { x: bCol.x, z: bCol.z, hit: true };
+    }
 
     if (col.hit && Math.abs(van.speed) > 7) {
       const dmgFactor = van.activeDecor.bullbar ? 0.45 : 1.0;

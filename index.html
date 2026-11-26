@@ -67,6 +67,8 @@
         <button class="btn primary" id="btn-toggle-van" onclick="toggleVehicleMode()" style="min-height:42px;">🚶 Turun Mobil [E]</button>
         <button class="btn" id="btn-door-van" onclick="toggleVanDoor()" style="min-height:42px;">🚪 Buka Pintu [G]</button>
         <button class="btn" id="btn-cabin-view" onclick="toggleCabinView()" style="min-height:42px;">🛋️ Kabin [V]</button>
+        <button class="btn" id="btn-tent-van" onclick="toggleTentExtension()" style="min-height:42px;">⛺ Tenda [T]</button>
+        <button class="btn" id="btn-build-mode" onclick="toggleBuildMode()" style="min-height:42px;">🔨 Bangun [Q]</button>
         <div class="speedo">
           <div class="speedo-val" id="txt-speed">0</div>
           <div class="speedo-unit" id="txt-mode">KM/J • MOBIL</div>
@@ -91,9 +93,20 @@
       <div class="panel controls-hint" id="controls-hint">
         <div><kbd>W A S D</kbd> Stir / Jalan • <kbd>Space</kbd> Rem / Lompat • <kbd>Shift</kbd> Lari</div>
         <div><kbd>E</kbd> Keluar / Masuk Mobil • <kbd>F</kbd> Ambil / Isi / Pom Bensin</div>
-        <div><kbd>G</kbd> Pintu • <kbd>V</kbd> Kabin • <kbd>L</kbd> Lampu • <kbd>H</kbd> Klakson • <kbd>C</kbd> Kamera</div>
+        <div><kbd>G</kbd> Pintu • <kbd>V</kbd> Kabin • <kbd>T</kbd> Tenda • <kbd>Q</kbd> Bangun • <kbd>L</kbd> Lampu • <kbd>C</kbd> Kamera</div>
       </div>
     </div>
+  </div>
+
+  <!-- Build Mode Toolbar -->
+  <div id="build-bar">
+    <span id="build-wood-count" style="font-size:12px; font-weight:700; color:#fbbf24; margin-right:4px;">🪵 Kayu: 0</span>
+    <button class="btn" id="btn-build-fence" onclick="BuildSys.setMode('fence')">🪵 [1] Pagar (1 Kayu)</button>
+    <button class="btn" id="btn-build-fire" onclick="BuildSys.setMode('campfire')">🔥 [2] Api Unggun (2 Kayu)</button>
+    <button class="btn" onclick="BuildSys.rotate()">🔄 Putar [R]</button>
+    <button class="btn success" onclick="BuildSys.placeCurrent()">✅ Pasang [F]</button>
+    <button class="btn danger" onclick="BuildSys.dismantleNearest()">🪓 Bongkar [X]</button>
+    <button class="btn" onclick="BuildSys.setMode(null)">✖ [Q]</button>
   </div>
 
   <!-- Interact Prompt -->
@@ -233,6 +246,7 @@
   <script src="js/scene.js"></script>
   <script src="js/world.js"></script>
   <script src="js/van.js"></script>
+  <script src="js/build.js"></script>
   <script src="js/player.js"></script>
   <script src="js/weather.js"></script>
   <script src="js/ui.js"></script>

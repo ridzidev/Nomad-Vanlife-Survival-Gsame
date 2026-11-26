@@ -56,6 +56,48 @@ let lastStepPhase = 0;
 let nearestInteract = null;
 let inCabinView = false;
 
+function isPlayerInTent() {
+  if (state.player.inVan || !state.van.tentOpen || !state.van.unlockedDecor.tentExtension) return false;
+  const dx = state.player.x - state.van.x;
+  const dz = state.player.z - state.van.z;
+  const cosY = Math.cos(-state.van.yaw), sinY = Math.sin(-state.van.yaw);
+  const lx = dx * cosY - dz * sinY;
+  const lz = dx * sinY + dz * cosY;
+  return lx >= -4.25 && lx <= -1.0 && lz >= -1.2 && lz <= 1.7;
+}
+
+function toggleTentExtension() {
+  if (!state.van.unlockedDecor.tentExtension) {
+    if (countItem(state.inventory, 'wood') >= 3 && countItem(state.inventory, 'scrap') >= 1) {
+      consumeItem(state.inventory, 'wood', 3);
+      consumeItem(state.inventory, 'scrap', 1);
+      state.van.unlockedDecor.tentExtension = true;
+      state.van.activeDecor.tentExtension = true;
+      state.van.tentOpen = true;
+      state.van.doorOpen = true;
+      state.van.speed = 0;
+      AudioSys.cook();
+      showToast('⛺ Berhasil merakit & memasang Tenda Extension Camper!');
+      saveGameState();
+    } else {
+      showToast('⛺ Untuk bikin Tenda Extension butuh 3x Kayu Bakar & 1x Besi Tua (Scrap)!');
+    }
+    return;
+  }
+  if (!state.van.tentOpen && Math.abs(state.van.speed) > 2.5) {
+    showToast('⚠️ Hentikan mobil dulu sebelum memasang Tenda Extension!');
+    return;
+  }
+  state.van.tentOpen = !state.van.tentOpen;
+  if (state.van.tentOpen) {
+    state.van.speed = 0;
+    state.van.doorOpen = true;
+  }
+  AudioSys.playTone(state.van.tentOpen ? 360 : 260, 0.12);
+  showToast(state.van.tentOpen ? '⛺ Tenda Extension dipasang di sisi Camper Van!' : '⛺ Tenda Extension dilipat, siap jalan!');
+  saveGameState();
+}
+
 function toggleVanDoor() {
   state.van.doorOpen = !state.van.doorOpen;
   AudioSys.playTone(state.van.doorOpen ? 380 : 280, 0.09);
@@ -136,6 +178,7 @@ function toggleVehicleMode() {
       return;
     }
     state.player.inVan = true;
+    if (typeof BuildSys !== 'undefined') BuildSys.setMode(null);
     AudioSys.playTone(340, 0.08);
     showToast('🚐 Kamu naik kembali ke Camper Van');
   }
@@ -207,8 +250,11 @@ function updatePlayerPhysics(dt) {
 
     const worldCol = resolveCollisions(pl.x + dirX * moveSpeed * dt, pl.z + dirZ * moveSpeed * dt, 0.45);
     const vanCol = resolvePlayerVanCollision(worldCol.x, worldCol.z, 0.42);
-    pl.x = vanCol.x;
-    pl.z = vanCol.z;
+    const buildCol = (typeof BuildSys !== 'undefined')
+      ? BuildSys.resolvePlayerCollision(vanCol.x, vanCol.z, 0.42, pl.y)
+      : { x: vanCol.x, z: vanCol.z };
+    pl.x = buildCol.x;
+    pl.z = buildCol.z;
 
     const targetYaw = Math.atan2(dirX, dirZ);
     let diff = targetYaw - pl.yaw;
@@ -293,6 +339,14 @@ function checkNearestInteraction() {
     }
   }
 
+  if (typeof BuildSys !== 'undefined' && BuildSys.mode && !state.player.inVan) {
+    best = { kind: 'build_place', label: '🔨 [F / Klik] Pasang • [R] Putar • [Q] Batal' };
+  }
+
+  if (!best && !state.player.inVan && typeof BuildSys !== 'undefined') {
+    best = BuildSys.getNearestInteract(px, pz);
+  }
+
   if (!best && !state.player.inVan) {
     const dv = Math.hypot(px - state.van.x, pz - state.van.z);
     if (dv <= 4.5) {
@@ -313,6 +367,21 @@ function checkNearestInteraction() {
 function triggerInteract() {
   if (!nearestInteract || activeModal) return;
   const it = nearestInteract;
+
+  if (it.kind === 'build_place') { BuildSys.placeCurrent(); return; }
+
+  if (it.kind === 'campfire') {
+    if (it.entry.data.fuel < 70 && countItem(state.inventory, 'wood') > 0) {
+      consumeItem(state.inventory, 'wood', 1);
+      it.entry.data.fuel = Math.min(100, it.entry.data.fuel + 60);
+      showToast('🔥 Menambah 1x Kayu ke Api Unggun & membuka menu masak!');
+      saveGameState();
+    } else {
+      showToast('🔥 Memasak dengan kehangatan Api Unggun!');
+    }
+    openInventoryModal();
+    return;
+  }
 
   if (it.kind === 'van_door') { openInventoryModal(); return; }
 

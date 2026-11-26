@@ -44,7 +44,8 @@ const DECORS = [
   { id: 'awning',      name: 'Tenda Samping (Awning)', icon: '⛱️', cost: { wood: 2, scrap: 1 }, desc: 'Kanopi berkemah bergaris di sisi kanan mobil.' },
   { id: 'surfboard',   name: 'Papan Selancar Atap', icon: '🏄', cost: { wood: 3 }, desc: 'Gaya anak pantai di atas atap camper van.' },
   { id: 'bullbar',     name: 'Bumper Off-Road + Lampu Kabut', icon: '🛡️', cost: { scrap: 3, electronics: 1 }, desc: 'Mengurangi kerusakan tabrakan hingga 50%.' },
-  { id: 'spareTire',   name: 'Ban Cadangan & Tangga Belakang', icon: '🛞', cost: { scrap: 2 }, desc: 'Tampilan ekspedisi tangguh di pintu belakang.' }
+  { id: 'spareTire',   name: 'Ban Cadangan & Tangga Belakang', icon: '🛞', cost: { scrap: 2 }, desc: 'Tampilan ekspedisi tangguh di pintu belakang.' },
+  { id: 'tentExtension', name: 'Tenda Extension Camper', icon: '⛺', cost: { wood: 3, scrap: 1 }, desc: 'Ruang tenda samping di pintu geser camper! Tekan [T] untuk pasang/lipat.' }
 ];
 
 const UPGRADES = [

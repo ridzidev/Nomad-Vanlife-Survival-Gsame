@@ -1,0 +1,116 @@
+// =========================================================================
+// GAME STATE, LOCALSTORAGE & HELPER INVENTORI
+// =========================================================================
+const SAVE_KEY = 'nomad_vanlife_survival_v1';
+
+function createDefaultState() {
+  return {
+    worldSeed: Math.floor(Math.random() * 999999) + 1,
+    day: 1,
+    timeOfDay: 0.34,
+    player: {
+      hp: 100, hunger: 92, thirst: 90, stamina: 100,
+      x: 6, y: 3, z: 0, yaw: 0,
+      inVan: true
+    },
+    van: {
+      x: 0, y: 3, z: 0, yaw: 0, speed: 0,
+      fuel: 88, battery: 95, hp: 100,
+      headlights: false,
+      doorOpen: false,
+      rainCollector: 0,
+      primaryColor: '#e85d3f',
+      accentColor: '#fef3c7',
+      livery: 'stripe',
+      unlockedDecor: { fairyLights: true, cabinPlant: true },
+      activeDecor: {
+        fairyLights: true, cabinPlant: true,
+        roofRack: false, solarPanel: false, awning: false,
+        surfboard: false, bullbar: false, spareTire: false
+      },
+      upgrades: { fridgeLevel: 1, tankLevel: 1, batLevel: 1 }
+    },
+    fridge: {
+      on: true,
+      items: [
+        { id: 'water', qty: 2, fresh: 100 },
+        { id: 'soda', qty: 2, fresh: 100 },
+        { id: 'bread', qty: 1, fresh: 95 },
+        { id: 'raw_meat', qty: 1, fresh: 95 }
+      ]
+    },
+    inventory: [
+      { id: 'canned_food', qty: 2, fresh: 100 },
+      { id: 'fuel_can', qty: 1, fresh: 100 },
+      { id: 'wood', qty: 3, fresh: 100 },
+      { id: 'scrap', qty: 2, fresh: 100 },
+      { id: 'electronics', qty: 1, fresh: 100 },
+      { id: 'berry', qty: 2, fresh: 100 }
+    ],
+    lootedIds: {},
+    distanceDriven: 0
+  };
+}
+
+let state = loadGameState();
+
+function loadGameState() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.van && parsed.player) {
+        if (parsed.van.doorOpen === undefined) parsed.van.doorOpen = false;
+        if (parsed.van.rainCollector === undefined) parsed.van.rainCollector = 0;
+        return parsed;
+      }
+    }
+  } catch (e) { console.warn('Gagal memuat save:', e); }
+  return createDefaultState();
+}
+
+function saveGameState(silent = true) {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    if (!silent) showToast('💾 Permainan tersimpan di LocalStorage!');
+  } catch (e) {
+    if (!silent) showToast('⚠️ Gagal menyimpan ke browser.');
+  }
+}
+
+function manualSave() { saveGameState(false); AudioSys.pickup(); }
+function confirmResetWorld() {
+  if (confirm('Mulai dunia baru dengan terrain & seed acak? Progress saat ini akan diganti.')) {
+    resetWorldNow();
+  }
+}
+function resetWorldNow() {
+  localStorage.removeItem(SAVE_KEY);
+  location.reload();
+}
+
+function getMaxFuel() { return 100 + (state.van.upgrades.tankLevel - 1) * 40; }
+function getMaxBat()  { return 100 + (state.van.upgrades.batLevel - 1) * 50; }
+function getMaxFridgeSlots() { return 4 + state.van.upgrades.fridgeLevel * 4; }
+
+function addItemToList(list, id, qty, fresh = 100) {
+  const existing = list.find(s => s.id === id && Math.abs(s.fresh - fresh) < 12);
+  if (existing) existing.qty += qty;
+  else list.push({ id, qty, fresh });
+}
+
+function countItem(list, id) {
+  return list.filter(s => s.id === id).reduce((a, b) => a + b.qty, 0);
+}
+
+function consumeItem(list, id, qty) {
+  let rem = qty;
+  for (let i = list.length - 1; i >= 0 && rem > 0; i--) {
+    if (list[i].id === id) {
+      const take = Math.min(list[i].qty, rem);
+      list[i].qty -= take;
+      rem -= take;
+      if (list[i].qty <= 0) list.splice(i, 1);
+    }
+  }
+}

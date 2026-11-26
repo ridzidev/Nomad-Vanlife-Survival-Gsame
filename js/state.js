@@ -18,6 +18,7 @@ function createDefaultState() {
       fuel: 88, battery: 95, hp: 100,
       headlights: false,
       doorOpen: false,
+      tentOpen: false,
       rainCollector: 0,
       primaryColor: '#e85d3f',
       accentColor: '#fef3c7',
@@ -48,6 +49,7 @@ function createDefaultState() {
       { id: 'berry', qty: 2, fresh: 100 }
     ],
     lootedIds: {},
+    placedBuilds: [],
     distanceDriven: 0
   };
 }
@@ -62,6 +64,8 @@ function loadGameState() {
       if (parsed && parsed.van && parsed.player) {
         if (parsed.van.doorOpen === undefined) parsed.van.doorOpen = false;
         if (parsed.van.rainCollector === undefined) parsed.van.rainCollector = 0;
+        if (parsed.van.tentOpen === undefined) parsed.van.tentOpen = false;
+        if (!Array.isArray(parsed.placedBuilds)) parsed.placedBuilds = [];
         return parsed;
       }
     }

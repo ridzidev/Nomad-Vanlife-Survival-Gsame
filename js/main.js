@@ -2,6 +2,7 @@
 // INPUT HANDLER, TRANSISI KAMERA HALUS & MAIN GAME LOOP
 // =========================================================================
 let lastMouseX = 0, lastMouseY = 0;
+let pointerDownX = 0, pointerDownY = 0;
 const camTargetPos = new THREE.Vector3(state.van.x, state.van.y + 1.5, state.van.z);
 
 window.addEventListener('keydown', e => {
@@ -28,6 +29,12 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyE') toggleVehicleMode();
   if (e.code === 'KeyG') toggleVanDoor();
   if (e.code === 'KeyV') toggleCabinView();
+  if (e.code === 'KeyT') toggleTentExtension();
+  if (e.code === 'KeyQ') toggleBuildMode();
+  if (e.code === 'Digit1' && !state.player.inVan) BuildSys.setMode('fence');
+  if (e.code === 'Digit2' && !state.player.inVan) BuildSys.setMode('campfire');
+  if (e.code === 'KeyR' && BuildSys.mode) BuildSys.rotate();
+  if (e.code === 'KeyX' && !state.player.inVan) BuildSys.dismantleNearest();
   if (e.code === 'KeyF') triggerInteract();
   if (e.code === 'KeyL' && state.player.inVan) {
     state.van.headlights = !state.van.headlights;
@@ -47,8 +54,8 @@ function touchKey(code, down) { keys[code] = !!down; AudioSys.resume(); }
 
 canvas.addEventListener('pointerdown', e => {
   isDragging = true;
-  lastMouseX = e.clientX;
-  lastMouseY = e.clientY;
+  lastMouseX = pointerDownX = e.clientX;
+  lastMouseY = pointerDownY = e.clientY;
   AudioSys.resume();
 });
 window.addEventListener('pointermove', e => {
@@ -60,7 +67,14 @@ window.addEventListener('pointermove', e => {
   camAngle -= dx * 0.007;
   camPitch = Math.max(0.08, Math.min(1.15, camPitch + dy * 0.005));
 });
-window.addEventListener('pointerup', () => { isDragging = false; });
+window.addEventListener('pointerup', e => {
+  if (isDragging && !activeModal && typeof BuildSys !== 'undefined' && BuildSys.mode && e.target === canvas) {
+    if (Math.hypot(e.clientX - pointerDownX, e.clientY - pointerDownY) < 6) {
+      BuildSys.placeCurrent();
+    }
+  }
+  isDragging = false;
+});
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -116,6 +130,7 @@ if (!state.player.inVan) {
 
 setInterval(() => saveGameState(true), 15000);
 updateChunks();
+if (typeof BuildSys !== 'undefined') BuildSys.restoreAll();
 showToast('🚐 Selamat datang! Tekan [E] atau tombol Turun Mobil kapan saja untuk berjalan kaki!');
 
 let lastTime = performance.now();
@@ -130,6 +145,7 @@ function animate(now) {
     updateVanPhysics(dt);
     updatePlayerPhysics(dt);
     updateDustParticles(dt);
+    if (typeof BuildSys !== 'undefined') BuildSys.update(dt);
     updateCamera(dt);
   }
   updateSurvivalAndEnvironment(dt);
@@ -138,6 +154,7 @@ function animate(now) {
   if (chunkTimer > 0.25) {
     chunkTimer = 0;
     updateChunks();
+if (typeof BuildSys !== 'undefined') BuildSys.restoreAll();
     checkNearestInteraction();
   }
 

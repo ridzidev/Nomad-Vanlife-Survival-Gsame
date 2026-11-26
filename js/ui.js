@@ -40,7 +40,12 @@ function updateSurvivalAndEnvironment(dt) {
   vanMaterials.fairy.emissiveIntensity = 0.4 + nightGlow * 2.2;
   vanInteriorLight.intensity = 0.2 + nightGlow * 0.9;
 
+  const inTent = (typeof isPlayerInTent === 'function') ? isPlayerInTent() : false;
+  if (typeof WeatherSys !== 'undefined') {
+    AudioSys.updateRain(WeatherSys.getRainVol(), state.player.inVan || inCabinView || inTent);
+  }
   if (state.van.activeDecor.solarPanel && isDay) {
+    const sMult = (typeof WeatherSys !== 'undefined') ? WeatherSys.getSolarMult() : 1;
     state.van.battery = Math.min(getMaxBat(), state.van.battery + 1.4 * sunY * sMult * dt);
   }
   let drain = 0;
@@ -53,10 +58,16 @@ function updateSurvivalAndEnvironment(dt) {
     showToast('🪫 Baterai Mobil habis! Kulkas & Lampu mati.');
   }
 
-  const thirstMult = biome === 'gurun' ? 1.7 : 1.0;
+  const nearFire = (typeof BuildSys !== 'undefined') ? BuildSys.isNearLitCampfire(px, pz) : null;
+  const thirstMult = (biome === 'gurun' && !inTent && !state.player.inVan) ? 1.7 : 1.0;
   state.player.hunger = Math.max(0, state.player.hunger - 0.32 * dt);
   state.player.thirst = Math.max(0, state.player.thirst - 0.45 * thirstMult * dt);
-  if (state.player.inVan) state.player.stamina = Math.min(100, state.player.stamina + 14 * dt);
+  if (state.player.inVan || inTent || nearFire) {
+    state.player.stamina = Math.min(100, state.player.stamina + (nearFire ? 18 : 13) * dt);
+  }
+  if (nearFire && state.player.hp < 100 && state.player.hunger > 35 && state.player.thirst > 35) {
+    state.player.hp = Math.min(100, state.player.hp + 0.5 * dt);
+  }
 
   if (state.player.hunger <= 0 || state.player.thirst <= 0) {
     state.player.hp = Math.max(0, state.player.hp - 1.8 * dt);
@@ -302,6 +313,7 @@ function unlockDecor(id) {
   for (const [m, q] of Object.entries(d.cost)) consumeItem(state.inventory, m, q);
   state.van.unlockedDecor[id] = true;
   state.van.activeDecor[id] = true;
+  if (id === 'tentExtension') { state.van.tentOpen = true; state.van.doorOpen = true; state.van.speed = 0; }
   syncVanVisuals(); renderCustomizeModal(); AudioSys.cook();
   showToast(`✨ ${d.name} berhasil dipasang di Camper Van!`);
   saveGameState();
@@ -466,5 +478,23 @@ function updateHUD() {
   if (dBtn) dBtn.textContent = state.van.doorOpen ? '🚪 Tutup Pintu [G]' : '🚪 Buka Pintu [G]';
   const cBtn = document.getElementById('btn-cabin-view');
   if (cBtn) cBtn.className = `btn ${inCabinView ? 'success' : ''}`;
+  const tBtn = document.getElementById('btn-tent-van');
+  if (tBtn) {
+    tBtn.textContent = !v.unlockedDecor.tentExtension ? '⛺ Bikin Tenda [T]' : (v.tentOpen ? '⛺ Lipat Tenda [T]' : '⛺ Pasang Tenda [T]');
+    tBtn.className = `btn ${v.tentOpen ? 'success' : ''}`;
+  }
+  const bBar = document.getElementById('build-bar');
+  const bBtn = document.getElementById('btn-build-mode');
+  if (typeof BuildSys !== 'undefined' && bBar && bBtn) {
+    bBar.style.display = (BuildSys.mode && !p.inVan) ? 'flex' : 'none';
+    bBtn.className = `btn ${BuildSys.mode ? 'success' : ''}`;
+    const fBtn = document.getElementById('btn-build-fence');
+    const cfBtn = document.getElementById('btn-build-fire');
+    if (fBtn) fBtn.className = `btn ${BuildSys.mode === 'fence' ? 'primary' : ''}`;
+    if (cfBtn) cfBtn.className = `btn ${BuildSys.mode === 'campfire' ? 'primary' : ''}`;
+    const wCount = countItem(state.inventory, 'wood');
+    const wEl2 = document.getElementById('build-wood-count');
+    if (wEl2) wEl2.textContent = `🪵 Kayu: ${wCount}`;
+  }
   document.getElementById('txt-coords').textContent = `X: ${Math.round(px)} | Z: ${Math.round(pz)} • Jarak: ${Math.round(state.distanceDriven)} m`;
 }
