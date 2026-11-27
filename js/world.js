@@ -109,11 +109,15 @@ function makePropMesh(kind) {
     c2.position.y = 4.6; c2.castShadow = true;
     g.add(trunk, c1, c2);
   } else if (kind === 'oak') {
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.38, 2.5, 6), MAT_WOOD);
-    trunk.position.y = 1.25; trunk.castShadow = true;
-    const top = new THREE.Mesh(new THREE.DodecahedronGeometry(1.75), MAT_LEAF);
-    top.position.y = 3.2; top.castShadow = true;
-    g.add(trunk, top);
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.4, 2.6, 7), MAT_WOOD);
+    trunk.position.y = 1.3; trunk.castShadow = true;
+    const top1 = new THREE.Mesh(new THREE.DodecahedronGeometry(1.55, 1), MAT_LEAF);
+    top1.position.set(0, 3.3, 0); top1.castShadow = true;
+    const top2 = new THREE.Mesh(new THREE.DodecahedronGeometry(1.15, 1), MAT_LEAF);
+    top2.position.set(0.75, 2.9, 0.45); top2.castShadow = true;
+    const top3 = new THREE.Mesh(new THREE.DodecahedronGeometry(1.05, 1), MAT_LEAF);
+    top3.position.set(-0.7, 2.85, -0.4); top3.castShadow = true;
+    g.add(trunk, top1, top2, top3);
   } else if (kind === 'palm') {
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.3, 4.2, 6), MAT_WOOD);
     trunk.position.y = 2.1; trunk.rotation.z = 0.1; trunk.castShadow = true;
@@ -261,7 +265,7 @@ function createChunk(cx, cz) {
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
 
-  const terrainMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0.02, flatShading: true });
+  const terrainMat = (typeof GraphicsSys !== 'undefined') ? GraphicsSys.getTerrainMaterial() : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.02 });
   const terrainMesh = new THREE.Mesh(geo, terrainMat);
   terrainMesh.position.set(ox, 0, oz);
   terrainMesh.receiveShadow = true;
@@ -347,8 +351,10 @@ function createChunk(cx, cz) {
 
       if (propKind) {
         const m = makePropMesh(propKind);
+        const propScale = 0.86 + WorldGen.hash2(cx, cz, i * 11 + 5) * 0.38;
         m.position.set(rx, ry, rz);
         m.rotation.y = rKind * Math.PI * 2;
+        m.scale.setScalar(propScale);
         group.add(m);
         colliders.push({ x: rx, z: rz, r: propKind === 'rock' ? 1.1 : 0.7 });
       }
@@ -388,6 +394,8 @@ function createChunk(cx, cz) {
     }
   }
 
+  if (typeof GraphicsSys !== 'undefined') GraphicsSys.populateChunkGrass(group, ox, oz, cx, cz);
+
   scene.add(group);
   activeChunks.set(key, { group, colliders, interactables });
 }
@@ -410,7 +418,7 @@ function updateChunks() {
   for (const [key, ch] of activeChunks.entries()) {
     if (!needed.has(key)) {
       scene.remove(ch.group);
-      ch.group.traverse(obj => { if (obj.geometry && obj.geometry.dispose) obj.geometry.dispose(); });
+      ch.group.traverse(obj => { if (obj.geometry && obj.geometry.dispose && !obj.userData.sharedGeo) obj.geometry.dispose(); });
       activeChunks.delete(key);
     }
   }

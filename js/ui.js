@@ -35,6 +35,9 @@ function updateSurvivalAndEnvironment(dt) {
   if (sunY > -0.15 && sunY < 0.25) curSky.lerp(duskSky, 0.35);
   scene.background.copy(curSky);
   scene.fog.color.copy(curSky);
+  if (typeof GraphicsSys !== 'undefined') {
+    GraphicsSys.update(dt, { px, pz, sunX, sunY, dayFactor, curSky });
+  }
 
   const nightGlow = 1 - dayFactor;
   vanMaterials.fairy.emissiveIntensity = 0.4 + nightGlow * 2.2;

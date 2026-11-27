@@ -123,6 +123,7 @@ function updateCamera(dt) {
 }
 
 // Inisialisasi Dunia & Mobil
+if (typeof GraphicsSys !== 'undefined') GraphicsSys.init();
 buildCamperVan();
 
 if (state.distanceDriven === 0 && state.van.x === 0 && state.van.z === 0) {

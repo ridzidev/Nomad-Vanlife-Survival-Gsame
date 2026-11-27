@@ -7,10 +7,10 @@ vanGroup.add(vanBodyTilt);
 scene.add(vanGroup);
 
 const vanMaterials = {
-  primary:   new THREE.MeshStandardMaterial({ color: state.van.primaryColor, roughness: 0.4, metalness: 0.15 }),
-  accent:    new THREE.MeshStandardMaterial({ color: state.van.accentColor, roughness: 0.45 }),
-  glass:     new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.1, metalness: 0.5, transparent: true, opacity: 0.72 }),
-  chrome:    new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.25, metalness: 0.8 }),
+  primary:   new THREE.MeshStandardMaterial({ color: state.van.primaryColor, roughness: 0.26, metalness: 0.36, envMapIntensity: 1.2 }),
+  accent:    new THREE.MeshStandardMaterial({ color: state.van.accentColor, roughness: 0.34, metalness: 0.18, envMapIntensity: 1.0 }),
+  glass:     new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.05, metalness: 0.85, transparent: true, opacity: 0.62, envMapIntensity: 1.6 }),
+  chrome:    new THREE.MeshStandardMaterial({ color: 0xdbe2ea, roughness: 0.16, metalness: 0.9, envMapIntensity: 1.6 }),
   tire:      new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.9 }),
   headlight: new THREE.MeshStandardMaterial({ color: 0xfef08a, emissive: 0xfef08a, emissiveIntensity: 0.1 }),
   taillight: new THREE.MeshStandardMaterial({ color: 0xdc2626, emissive: 0xdc2626, emissiveIntensity: 0.3 }),
@@ -30,9 +30,10 @@ function buildCamperVan() {
   while (vanBodyTilt.children.length) vanBodyTilt.remove(vanBodyTilt.children[0]);
   vanWheels = [];
 
-  const matWoodFloor = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.85 });
-  const matCabinet   = new THREE.MeshStandardMaterial({ color: 0xd6d3d1, roughness: 0.7 });
-  const matBedBlanket = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.85 });
+  const hasG = typeof GraphicsSys !== 'undefined' && GraphicsSys.initialized;
+  const matWoodFloor = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.82, map: hasG ? GraphicsSys.texWood : null, bumpMap: hasG ? GraphicsSys.texWoodBump : null, bumpScale: 0.05 });
+  const matCabinet   = new THREE.MeshStandardMaterial({ color: 0xd6d3d1, roughness: 0.65 });
+  const matBedBlanket = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.9, map: hasG ? GraphicsSys.texFabric : null, bumpMap: hasG ? GraphicsSys.texFabricBump : null, bumpScale: 0.05 });
   const matPillow    = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.8 });
   const matSeat      = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
   vanFridgeLedMat    = new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 1.5 });
@@ -174,6 +175,28 @@ function buildCamperVan() {
   liveryMeshLeft.rotation.y = -Math.PI / 2;
   vanBodyTilt.add(liveryMeshLeft);
   updateVanLiveryTexture();
+
+  // Detail Eksterior Realistis: Spion Kiri/Kanan, Wiper, Plat Nomor, Ventilasi Atap & Spakbor Roda
+  [-1.14, 1.14].forEach((mx, idx) => {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.04), vanMaterials.tire);
+    arm.position.set(mx, 1.56, 1.98);
+    const mirror = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.22, 0.14), vanMaterials.tire);
+    mirror.position.set(mx + (idx === 0 ? -0.07 : 0.07), 1.58, 1.96);
+    vanBodyTilt.add(arm, mirror);
+  });
+  [-0.38, 0.38].forEach(wx => {
+    const wiper = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.025, 0.03), vanMaterials.tire);
+    wiper.position.set(wx, 1.5, 2.15);
+    wiper.rotation.z = 0.22;
+    vanBodyTilt.add(wiper);
+  });
+  const frontPlate = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.13, 0.04), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 }));
+  frontPlate.position.set(0, 0.56, 2.52);
+  const rearPlate = frontPlate.clone();
+  rearPlate.position.set(0, 0.62, -2.51);
+  const roofVent = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.1, 0.58), vanMaterials.chrome);
+  roofVent.position.set(0, 2.36, -1.25);
+  vanBodyTilt.add(frontPlate, rearPlate, roofVent);
 
   // Bumper & Grille
   const fBumper = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.24, 0.25), vanMaterials.chrome);
