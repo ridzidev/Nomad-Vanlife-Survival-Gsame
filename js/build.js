@@ -1,10 +1,10 @@
 // =========================================================================
-// SISTEM BANGUNAN SURVIVAL: PAGAR KAYU ALA MINECRAFT & API UNGGUN 3D
+// SISTEM BANGUNAN SURVIVAL: PAGAR KAYU, PINTU PAGAR & API UNGGUN 3D
 // =========================================================================
 const BuildSys = {
   GRID_SIZE: 2.0,
-  mode: null, // null | 'fence' | 'campfire'
-  rot: 0,     // 0 | 1 (orientasi pagar berdiri sendiri)
+  mode: null, // null | 'fence' | 'gate' | 'campfire'
+  rot: 0,     // 0 | 1
   entries: [],
   previewGroup: null,
   previewMatOk: null,
@@ -16,13 +16,14 @@ const BuildSys = {
 
   COST: {
     fence:    { wood: 1, label: 'Pagar Kayu' },
+    gate:     { wood: 1, label: 'Pintu Pagar' },
     campfire: { wood: 2, label: 'Api Unggun' }
   },
 
   initPreview() {
     if (this.previewGroup) return;
-    this.previewMatOk  = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.45, wireframe: false });
-    this.previewMatBad = new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.45, wireframe: false });
+    this.previewMatOk  = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.45 });
+    this.previewMatBad = new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.45 });
     this.previewGroup = new THREE.Group();
     this.previewGroup.visible = false;
     scene.add(this.previewGroup);
@@ -68,6 +69,16 @@ const BuildSys = {
       const rBot = rTop.clone();
       rBot.position.y = 0.48;
       this.previewGroup.add(post, rTop, rBot);
+    } else if (this.mode === 'gate') {
+      const isX = this.rot === 0;
+      [-0.9, 0.9].forEach(off => {
+        const p = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.25, 0.24), m);
+        p.position.set(isX ? off : 0, 0.625, isX ? 0 : off);
+        this.previewGroup.add(p);
+      });
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(isX ? 1.56 : 0.14, 0.78, isX ? 0.14 : 1.56), m);
+      panel.position.y = 0.68;
+      this.previewGroup.add(panel);
     } else if (this.mode === 'campfire') {
       const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.78, 0.2, 8), m);
       ring.position.y = 0.1;
@@ -75,6 +86,10 @@ const BuildSys = {
       flame.position.y = 0.55;
       this.previewGroup.add(ring, flame);
     }
+  },
+
+  isGridType(type) {
+    return type === 'fence' || type === 'gate';
   },
 
   getTargetSpot() {
@@ -86,7 +101,7 @@ const BuildSys = {
     const rawZ = pl.z + lookZ * 2.6;
 
     let gx = null, gz = null, x, z;
-    if (this.mode === 'fence') {
+    if (this.isGridType(this.mode)) {
       gx = Math.round(rawX / this.GRID_SIZE);
       gz = Math.round(rawZ / this.GRID_SIZE);
       x = gx * this.GRID_SIZE;
@@ -102,13 +117,11 @@ const BuildSys = {
     if (y < WATER_LEVEL + 0.1) valid = false;
     if (countItem(state.inventory, 'wood') < this.COST[this.mode].wood) valid = false;
 
-    // Tidak menabrak badan mobil
     const dxV = x - state.van.x, dzV = z - state.van.z;
     if (Math.hypot(dxV, dzV) < 2.3) valid = false;
 
-    // Tidak menumpuk di titik yang sama persis
     for (const e of this.entries) {
-      if (this.mode === 'fence' && e.data.type === 'fence' && e.data.gx === gx && e.data.gz === gz) {
+      if (this.isGridType(this.mode) && this.isGridType(e.data.type) && e.data.gx === gx && e.data.gz === gz) {
         valid = false; break;
       }
       if (Math.hypot(e.data.x - x, e.data.z - z) < 0.8) {
@@ -119,15 +132,14 @@ const BuildSys = {
     return { type: this.mode, gx, gz, x, y, z, rot: this.rot, valid };
   },
 
-  findFenceAt(gx, gz) {
-    return this.entries.find(e => e.data.type === 'fence' && e.data.gx === gx && e.data.gz === gz);
+  findGridAt(gx, gz) {
+    return this.entries.find(e => this.isGridType(e.data.type) && e.data.gx === gx && e.data.gz === gz);
   },
 
   buildFenceMesh(data) {
     const g = new THREE.Group();
     g.position.set(data.x, data.y, data.z);
 
-    // Tiang utama di tengah sel grid
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.25, 0.24), MAT_WOOD);
     post.position.y = 0.625;
     post.castShadow = true; post.receiveShadow = true;
@@ -146,7 +158,7 @@ const BuildSys = {
     const halfSpan = this.GRID_SIZE * 0.5;
 
     for (const d of dirs) {
-      const nb = this.findFenceAt(data.gx + d.dx, data.gz + d.dz);
+      const nb = this.findGridAt(data.gx + d.dx, data.gz + d.dz);
       if (!nb) continue;
       hasConn = true;
       const dy = nb.data.y - data.y;
@@ -170,7 +182,6 @@ const BuildSys = {
       });
     }
 
-    // Jika berdiri sendiri (belum tersambung tetangga), gambar panel pagar sesuai rotasi [R]
     if (!hasConn) {
       const isX = (data.rot || 0) === 0;
       [-0.86, 0.86].forEach(off => {
@@ -193,11 +204,74 @@ const BuildSys = {
     return g;
   },
 
+  getGateAxis(data) {
+    const hasX = this.findGridAt(data.gx + 1, data.gz) || this.findGridAt(data.gx - 1, data.gz);
+    const hasZ = this.findGridAt(data.gx, data.gz + 1) || this.findGridAt(data.gx, data.gz - 1);
+    if (hasX && !hasZ) return 'x';
+    if (hasZ && !hasX) return 'z';
+    return (data.rot || 0) === 0 ? 'x' : 'z';
+  },
+
+  buildGateMesh(data) {
+    const g = new THREE.Group();
+    g.position.set(data.x, data.y, data.z);
+
+    const axis = this.getGateAxis(data);
+    const isX = axis === 'x';
+    const matGateWood = new THREE.MeshStandardMaterial({ color: 0xa16207, roughness: 0.8 });
+    const matLatch    = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.7, roughness: 0.3 });
+
+    // Dua tiang engsel di kiri-kanan sel grid
+    [-0.9, 0.9].forEach(off => {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.28, 0.22), MAT_WOOD);
+      post.position.set(isX ? off : 0, 0.64, isX ? 0 : off);
+      post.castShadow = true; post.receiveShadow = true;
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.28), matGateWood);
+      cap.position.set(isX ? off : 0, 1.3, isX ? 0 : off);
+      g.add(post, cap);
+    });
+
+    // Daun pintu pagar berengsel di -0.82
+    const doorPivot = new THREE.Group();
+    doorPivot.position.set(isX ? -0.8 : 0, 0, isX ? 0 : -0.8);
+
+    // Palang atas & bawah pintu pagar
+    [0.42, 0.94].forEach(ry => {
+      const bar = new THREE.Mesh(
+        isX ? new THREE.BoxGeometry(1.58, 0.14, 0.11) : new THREE.BoxGeometry(0.11, 0.14, 1.58),
+        matGateWood
+      );
+      bar.position.set(isX ? 0.79 : 0, ry, isX ? 0 : 0.79);
+      bar.castShadow = true;
+      doorPivot.add(bar);
+    });
+
+    // Bilah vertikal pintu pagar + kunci grendel besi
+    [0.35, 0.8, 1.25].forEach(so => {
+      const slat = new THREE.Mesh(
+        isX ? new THREE.BoxGeometry(0.12, 0.72, 0.09) : new THREE.BoxGeometry(0.09, 0.72, 0.12),
+        matGateWood
+      );
+      slat.position.set(isX ? so : 0, 0.68, isX ? 0 : so);
+      slat.castShadow = true;
+      doorPivot.add(slat);
+    });
+
+    const latch = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.16), matLatch);
+    latch.position.set(isX ? 1.46 : 0, 0.86, isX ? 0 : 1.46);
+    doorPivot.add(latch);
+
+    const openAngle = data.open ? Math.PI * 0.48 : 0;
+    doorPivot.rotation.y = openAngle;
+    g.add(doorPivot);
+
+    return { group: g, doorPivot, openProg: data.open ? 1 : 0 };
+  },
+
   buildCampfireMesh(data) {
     const g = new THREE.Group();
     g.position.set(data.x, data.y, data.z);
 
-    // Lingkaran batu
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2;
       const st = new THREE.Mesh(new THREE.DodecahedronGeometry(0.22), MAT_ROCK);
@@ -208,7 +282,6 @@ const BuildSys = {
       g.add(st);
     }
 
-    // Kayu silang
     for (let i = 0; i < 4; i++) {
       const log = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 1.05, 6), MAT_WOOD);
       log.rotation.z = Math.PI / 2 - 0.25;
@@ -218,7 +291,6 @@ const BuildSys = {
       g.add(log);
     }
 
-    // Bara merah
     const ember = new THREE.Mesh(
       new THREE.CylinderGeometry(0.36, 0.42, 0.08, 8),
       new THREE.MeshBasicMaterial({ color: 0xea580c })
@@ -226,7 +298,6 @@ const BuildSys = {
     ember.position.y = 0.06;
     g.add(ember);
 
-    // 3 Lidah api animasi
     const flames = [];
     const flameSpecs = [
       { r: 0.26, h: 0.78, col: 0xf97316, x: 0, z: 0 },
@@ -243,7 +314,6 @@ const BuildSys = {
       flames.push({ mesh: fm, baseY: fm.position.y, phase: idx * 2.1 });
     });
 
-    // Cahaya penerangan malam
     const light = new THREE.PointLight(0xff8c3b, 2.2, 20, 1.4);
     light.position.set(0, 1.15, 0);
     g.add(light);
@@ -258,6 +328,12 @@ const BuildSys = {
       const entry = { data, mesh };
       this.entries.push(entry);
       return entry;
+    } else if (data.type === 'gate') {
+      const built = this.buildGateMesh(data);
+      scene.add(built.group);
+      const entry = { data, mesh: built.group, doorPivot: built.doorPivot, openProg: built.openProg };
+      this.entries.push(entry);
+      return entry;
     } else {
       const built = this.buildCampfireMesh(data);
       scene.add(built.group);
@@ -267,16 +343,23 @@ const BuildSys = {
     }
   },
 
-  refreshFenceAndNeighbors(gx, gz) {
+  refreshGridAndNeighbors(gx, gz) {
     const targets = [
       [gx, gz], [gx + 1, gz], [gx - 1, gz], [gx, gz + 1], [gx, gz - 1]
     ];
     for (const [tx, tz] of targets) {
-      const entry = this.findFenceAt(tx, tz);
+      const entry = this.findGridAt(tx, tz);
       if (!entry) continue;
       scene.remove(entry.mesh);
       entry.mesh.traverse(o => { if (o.geometry) o.geometry.dispose(); });
-      entry.mesh = this.buildFenceMesh(entry.data);
+      if (entry.data.type === 'fence') {
+        entry.mesh = this.buildFenceMesh(entry.data);
+      } else if (entry.data.type === 'gate') {
+        const built = this.buildGateMesh(entry.data);
+        entry.mesh = built.group;
+        entry.doorPivot = built.doorPivot;
+        entry.openProg = built.openProg;
+      }
       scene.add(entry.mesh);
     }
   },
@@ -289,11 +372,11 @@ const BuildSys = {
     if (!Array.isArray(state.placedBuilds)) state.placedBuilds = [];
     for (const b of state.placedBuilds) {
       if (b.y === undefined) b.y = WorldGen.getTerrainHeight(b.x, b.z);
+      if (b.type === 'gate' && b.open === undefined) b.open = false;
       this.spawnEntry(b);
     }
-    // Refresh semua pagar agar koneksi terpasang rapi
     for (const e of this.entries) {
-      if (e.data.type === 'fence') this.refreshFenceAndNeighbors(e.data.gx, e.data.gz);
+      if (this.isGridType(e.data.type)) this.refreshGridAndNeighbors(e.data.gx, e.data.gz);
     }
   },
 
@@ -322,14 +405,20 @@ const BuildSys = {
       y: spot.y,
       z: spot.z,
       rot: spot.rot,
+      open: false,
       fuel: 100
     };
     state.placedBuilds.push(data);
     this.spawnEntry(data);
-    if (data.type === 'fence') this.refreshFenceAndNeighbors(data.gx, data.gz);
+    if (this.isGridType(data.type)) this.refreshGridAndNeighbors(data.gx, data.gz);
 
     AudioSys.cook();
-    showToast(data.type === 'fence' ? '🪵 Pagar Kayu terpasang!' : '🔥 Api Unggun dinyalakan! Menerangi area malam.');
+    const msgs = {
+      fence: '🪵 Pagar Kayu terpasang!',
+      gate: '🚪 Pintu Pagar Kayu terpasang! (Dekati & tekan [F] untuk buka/tutup)',
+      campfire: '🔥 Api Unggun dinyalakan! Menerangi area malam.'
+    };
+    showToast(msgs[data.type]);
     saveGameState();
     return true;
   },
@@ -343,7 +432,7 @@ const BuildSys = {
       if (d < bestDist) { bestDist = d; bestIdx = i; }
     }
     if (bestIdx === -1) {
-      showToast('ℹ️ Tidak ada pagar / api unggun di dekatmu untuk dibongkar.');
+      showToast('ℹ️ Tidak ada pagar / pintu / api unggun di dekatmu untuk dibongkar.');
       return;
     }
 
@@ -356,7 +445,7 @@ const BuildSys = {
     const sIdx = state.placedBuilds.findIndex(b => b.id === data.id);
     if (sIdx !== -1) state.placedBuilds.splice(sIdx, 1);
 
-    if (data.type === 'fence') this.refreshFenceAndNeighbors(data.gx, data.gz);
+    if (this.isGridType(data.type)) this.refreshGridAndNeighbors(data.gx, data.gz);
 
     addItemToList(state.inventory, 'wood', 1, 100);
     AudioSys.pickup();
@@ -369,13 +458,24 @@ const BuildSys = {
     for (const e of this.entries) {
       const d = e.data;
       if (d.type === 'fence') {
-        // Bisa dilompati jika melompat di atas pagar (tinggi pagar 1.25m)
         if (playerY >= d.y + 1.12) continue;
-        const hasX = this.findFenceAt(d.gx + 1, d.gz) || this.findFenceAt(d.gx - 1, d.gz);
-        const hasZ = this.findFenceAt(d.gx, d.gz + 1) || this.findFenceAt(d.gx, d.gz - 1);
+        const hasX = this.findGridAt(d.gx + 1, d.gz) || this.findGridAt(d.gx - 1, d.gz);
+        const hasZ = this.findGridAt(d.gx, d.gz + 1) || this.findGridAt(d.gx, d.gz - 1);
         const alone = !hasX && !hasZ;
         const hw = (hasX || (alone && d.rot === 0)) ? 1.02 + r : 0.22 + r;
         const hd = (hasZ || (alone && d.rot === 1)) ? 1.02 + r : 0.22 + r;
+        const dx = rx - d.x, dz = rz - d.z;
+        if (Math.abs(dx) < hw && Math.abs(dz) < hd) {
+          const ox = hw - Math.abs(dx);
+          const oz = hd - Math.abs(dz);
+          if (ox < oz) rx += dx >= 0 ? ox : -ox;
+          else rz += dz >= 0 ? oz : -oz;
+        }
+      } else if (d.type === 'gate') {
+        if (d.open || playerY >= d.y + 1.12) continue;
+        const isX = this.getGateAxis(d) === 'x';
+        const hw = isX ? 1.02 + r : 0.22 + r;
+        const hd = isX ? 0.22 + r : 1.02 + r;
         const dx = rx - d.x, dz = rz - d.z;
         if (Math.abs(dx) < hw && Math.abs(dz) < hd) {
           const ox = hw - Math.abs(dx);
@@ -400,7 +500,8 @@ const BuildSys = {
     let rx = x, rz = z, hit = false;
     for (const e of this.entries) {
       const d = e.data;
-      const minD = (d.type === 'fence' ? 0.95 : 0.75) + r;
+      if (d.type === 'gate' && d.open) continue;
+      const minD = (this.isGridType(d.type) ? 0.95 : 0.75) + r;
       const dx = rx - d.x, dz = rz - d.z;
       const distSq = dx * dx + dz * dz;
       if (distSq < minD * minD && distSq > 0.0001) {
@@ -419,13 +520,25 @@ const BuildSys = {
       const dist = Math.hypot(px - e.data.x, pz - e.data.z);
       if (dist < bestDist) {
         bestDist = dist;
-        best = {
-          kind: e.data.type === 'campfire' ? 'campfire' : 'fence_build',
-          entry: e,
-          label: e.data.type === 'campfire'
-            ? `🔥 [F] Masak di Api Unggun (${Math.round(e.data.fuel)}%) • [X] Bongkar`
-            : `🪵 [X] Bongkar Pagar Kayu`
-        };
+        if (e.data.type === 'campfire') {
+          best = {
+            kind: 'campfire',
+            entry: e,
+            label: `🔥 [F] Masak di Api Unggun (${Math.round(e.data.fuel)}%) • [X] Bongkar`
+          };
+        } else if (e.data.type === 'gate') {
+          best = {
+            kind: 'gate',
+            entry: e,
+            label: `🚪 [F] ${e.data.open ? 'Tutup' : 'Buka'} Pintu Pagar • [X] Bongkar`
+          };
+        } else {
+          best = {
+            kind: 'fence_build',
+            entry: e,
+            label: `🪵 [X] Bongkar Pagar Kayu`
+          };
+        }
       }
     }
     return best;
@@ -443,7 +556,6 @@ const BuildSys = {
   update(dt) {
     this.initPreview();
 
-    // Update ghost preview
     if (this.mode && !state.player.inVan && !activeModal) {
       const spot = this.getTargetSpot();
       if (spot) {
@@ -459,12 +571,18 @@ const BuildSys = {
       this.previewGroup.visible = false;
     }
 
-    // Animasi api unggun, bahan bakar & partikel bara api
     const now = performance.now() * 0.008;
     const px = state.player.inVan ? state.van.x : state.player.x;
     const pz = state.player.inVan ? state.van.z : state.player.z;
 
     for (const e of this.entries) {
+      if (e.data.type === 'gate' && e.doorPivot) {
+        const target = e.data.open ? 1 : 0;
+        e.openProg += (target - e.openProg) * Math.min(1, dt * 10);
+        e.doorPivot.rotation.y = e.openProg * Math.PI * 0.48;
+        continue;
+      }
+
       if (e.data.type !== 'campfire') continue;
       if (e.data.fuel > 0) {
         e.data.fuel = Math.max(0, e.data.fuel - 0.14 * dt);

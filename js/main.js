@@ -9,7 +9,11 @@ window.addEventListener('keydown', e => {
   keys[e.code] = true;
   AudioSys.resume();
 
-  if (e.code === 'Escape') { closeAllModals(); return; }
+  if (e.code === 'Escape') {
+    if (activeModal) { closeAllModals(); return; }
+    if (typeof BuildSys !== 'undefined' && BuildSys.mode) { BuildSys.setMode(null); return; }
+    return;
+  }
   if (e.code === 'Tab' || e.code === 'KeyI') {
     e.preventDefault();
     activeModal === 'inventory' ? closeAllModals() : openInventoryModal();
@@ -32,7 +36,8 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyT') toggleTentExtension();
   if (e.code === 'KeyQ') toggleBuildMode();
   if (e.code === 'Digit1' && !state.player.inVan) BuildSys.setMode('fence');
-  if (e.code === 'Digit2' && !state.player.inVan) BuildSys.setMode('campfire');
+  if (e.code === 'Digit2' && !state.player.inVan) BuildSys.setMode('gate');
+  if (e.code === 'Digit3' && !state.player.inVan) BuildSys.setMode('campfire');
   if (e.code === 'KeyR' && BuildSys.mode) BuildSys.rotate();
   if (e.code === 'KeyX' && !state.player.inVan) BuildSys.dismantleNearest();
   if (e.code === 'KeyF') triggerInteract();

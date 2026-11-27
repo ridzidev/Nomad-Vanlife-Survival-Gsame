@@ -583,4 +583,19 @@ function updateVanPhysics(dt) {
     vanSideDoorGroup.position.x = -1.06 - doorSlideProgress * 0.08;
     vanSideDoorGroup.position.z = 0.35 - doorSlideProgress * 1.18;
   }
+
+  // Animasi Tenda Extension Camper
+  const targetTent = (state.van.tentOpen && state.van.unlockedDecor.tentExtension) ? 1 : 0;
+  tentDeployProgress += (targetTent - tentDeployProgress) * Math.min(1, dt * 6);
+  if (vanTentGroup) {
+    vanTentGroup.visible = tentDeployProgress > 0.02;
+    if (vanTentGroup.visible) {
+      vanTentGroup.scale.set(Math.max(0.05, tentDeployProgress), 1, 1);
+      vanTentGroup.position.x = (1 - tentDeployProgress) * -1.05;
+    }
+    if (vanTentLight) {
+      const nightFactor = Math.max(0, 1 - Math.max(0, Math.sin((state.timeOfDay - 0.25) * Math.PI * 2) * 2 + 0.2));
+      vanTentLight.intensity = tentDeployProgress * (0.35 + nightFactor * 1.5);
+    }
+  }
 }

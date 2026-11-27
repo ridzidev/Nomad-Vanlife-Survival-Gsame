@@ -370,6 +370,14 @@ function triggerInteract() {
 
   if (it.kind === 'build_place') { BuildSys.placeCurrent(); return; }
 
+  if (it.kind === 'gate') {
+    it.entry.data.open = !it.entry.data.open;
+    AudioSys.playTone(it.entry.data.open ? 420 : 280, 0.08);
+    showToast(it.entry.data.open ? '🚪 Pintu Pagar dibuka' : '🚪 Pintu Pagar ditutup');
+    saveGameState();
+    return;
+  }
+
   if (it.kind === 'campfire') {
     if (it.entry.data.fuel < 70 && countItem(state.inventory, 'wood') > 0) {
       consumeItem(state.inventory, 'wood', 1);

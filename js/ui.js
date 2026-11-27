@@ -304,7 +304,12 @@ function renderCustomizeModal() {
 
 function setVanColor(key, col) { state.van[key] = col; syncVanVisuals(); renderCustomizeModal(); AudioSys.playTone(500, 0.05); saveGameState(); }
 function setVanLivery(id) { state.van.livery = id; syncVanVisuals(); renderCustomizeModal(); AudioSys.playTone(540, 0.05); saveGameState(); }
-function toggleDecor(id) { state.van.activeDecor[id] = !state.van.activeDecor[id]; syncVanVisuals(); renderCustomizeModal(); AudioSys.playTone(460, 0.06); saveGameState(); }
+function toggleDecor(id) {
+  state.van.activeDecor[id] = !state.van.activeDecor[id];
+  if (id === 'tentExtension') state.van.tentOpen = !!state.van.activeDecor[id];
+  if (state.van.tentOpen) { state.van.speed = 0; state.van.doorOpen = true; }
+  syncVanVisuals(); renderCustomizeModal(); AudioSys.playTone(460, 0.06); saveGameState();
+}
 
 function unlockDecor(id) {
   const d = DECORS.find(x => x.id === id);
@@ -489,8 +494,10 @@ function updateHUD() {
     bBar.style.display = (BuildSys.mode && !p.inVan) ? 'flex' : 'none';
     bBtn.className = `btn ${BuildSys.mode ? 'success' : ''}`;
     const fBtn = document.getElementById('btn-build-fence');
+    const gBtn = document.getElementById('btn-build-gate');
     const cfBtn = document.getElementById('btn-build-fire');
     if (fBtn) fBtn.className = `btn ${BuildSys.mode === 'fence' ? 'primary' : ''}`;
+    if (gBtn) gBtn.className = `btn ${BuildSys.mode === 'gate' ? 'primary' : ''}`;
     if (cfBtn) cfBtn.className = `btn ${BuildSys.mode === 'campfire' ? 'primary' : ''}`;
     const wCount = countItem(state.inventory, 'wood');
     const wEl2 = document.getElementById('build-wood-count');
